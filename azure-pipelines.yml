@@ -12,19 +12,24 @@ steps:
   inputs:
     terraformVersion: 'latest'
 
+variables:
+  source_code_location:'$(System.DefaultWorkingDirectory)/terraform-azure-infra'
+  svn:$(svn)
+
 - task: TerraformTask@5
+  displayName: 'init'
   inputs:
     provider: 'azurerm'
     command: 'init'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/terraform-azure-infra'
-    backendServiceArm: 'charlie service connection'
+    workingDirectory: $(source_code_location)
+    backendServiceArm: $(svn)
     backendAzureRmStorageAccountName: 'backendstg10'
     backendAzureRmContainerName: 'backendcnt10'
     backendAzureRmKey: 'nishnat.tfstate'
 
 - task: TerraformTask@5
+  displayName: 'validate'
   inputs:
     provider: 'azurerm'
     command: 'validate'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/terraform-azure-infra'
-
+    workingDirectory: $(source_code_location)
