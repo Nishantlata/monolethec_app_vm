@@ -1,0 +1,164 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr: none
+
+variables:
+  terraformVersion: "1.13.0"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+  tfvarsFile: "environments/dev/terraform.tfvars"
+
+pool:
+  name: "Charlie Agent Pool"
+
+steps:
+
+#=========================================================
+# Repository Checkout
+#=========================================================
+- checkout: self
+  clean: true
+  displayName: "Repository Checkout"
+
+#=========================================================
+# Install Terraform
+#=========================================================
+- task: TerraformInstaller@1
+  displayName: "Install Terraform"
+
+  inputs:
+    terraformVersion: $(terraformVersion)
+
+#=========================================================
+# Install terraform-docs
+#=========================================================
+- powershell: |
+    choco install terraform-docs -y
+    terraform-docs --version
+  displayName: "Install terraform-docs"
+
+#=========================================================
+# Install TFLint
+#=========================================================
+- powershell: |
+    choco install tflint -y
+    tflint --version
+  displayName: "Install TFLint"
+
+#=========================================================
+# Install Checkov
+#=========================================================
+- powershell: |
+    python -m pip install --upgrade pip
+    pip install checkov
+    checkov --version
+  displayName: "Install Checkov"
+
+#=========================================================
+# Install tfsec
+#=========================================================
+- powershell: |
+    choco install tfsec -y
+    tfsec --version
+  displayName: "Install tfsec"
+
+#=========================================================
+# Terraform Init
+#=========================================================
+- script: |
+    terraform init
+  displayName: "Terraform Init"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Terraform Format
+#=========================================================
+- script: |
+    terraform fmt -check -recursive
+  displayName: "Terraform Format"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Terraform Validate
+#=========================================================
+- script: |
+    terraform validate
+  displayName: "Terraform Validate"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Terraform Docs
+#=========================================================
+- script: |
+    terraform-docs markdown table . > README.md
+  displayName: "Terraform Docs"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Terraform Lint
+#=========================================================
+- script: |
+    tflint --init
+    tflint
+  displayName: "Terraform Lint"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Checkov
+#=========================================================
+- script: |
+    checkov -d .
+  displayName: "Checkov Scan"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# tfsec
+#=========================================================
+- script: |
+    tfsec .
+  displayName: "tfsec Scan"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Terraform Plan
+#=========================================================
+- script: |
+    terraform plan ^
+      -var-file=$(tfvarsFile) ^
+      -out=tfplan
+  displayName: "Terraform Plan"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Terraform Apply
+#=========================================================
+- script: |
+    terraform apply -auto-approve tfplan
+  displayName: "Terraform Apply"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Terraform Output
+#=========================================================
+- script: |
+    terraform output
+  displayName: "Terraform Output"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# State Verification
+#=========================================================
+- script: |
+    terraform state list
+  displayName: "State Verification"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
+
+#=========================================================
+# Remote Backend Validation
+#=========================================================
+- script: |
+    terraform state pull
+  displayName: "Remote Backend Validation"
+  workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
