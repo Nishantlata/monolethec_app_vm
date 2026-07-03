@@ -6,7 +6,7 @@ trigger:
 pr: none
 
 variables:
-  terraformVersion: "1.13.0"
+  terraformVersion: "1.15.6"
   workingDirectory: "$(Build.SourcesDirectory)/terraform-azure-infra"
   tfvarsFile: "environments/dev/terraform.tfvars"
 
@@ -31,13 +31,6 @@ steps:
   inputs:
     terraformVersion: $(terraformVersion)
 
-#=========================================================
-# Install terraform-docs
-#=========================================================
-- powershell: |
-    choco install terraform-docs -y
-    terraform-docs --version
-  displayName: "Install terraform-docs"
 
 #=========================================================
 # Install TFLint
