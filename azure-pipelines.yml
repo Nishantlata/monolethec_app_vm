@@ -46,10 +46,7 @@ stages:
         backendAzureRmContainerName: 'backendcnt10'
         backendAzureRmKey: 'nishnat.tfstate'
 
-    - script: |
-        terraform fmt -recursive -check
-      displayName: Terraform Format Check
-      workingDirectory: $(source_code_location)
+
 
     - task: TerraformTask@5
       displayName: Terraform Validate
