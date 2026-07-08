@@ -1,0 +1,144 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr: none
+
+pool:
+  name: 'Charlie Agent Pool'
+
+variables:
+  source_code_location: '$(System.DefaultWorkingDirectory)/terraform-azure-infra'
+  serviceConnection: 'charlie service connection'
+  tfvarsFile: 'environments/dev/terraform.tfvars'
+  tfPlanFile: 'tfplan'
+
+############################################
+# Stage 1 - Validation
+############################################
+
+stages:
+
+- stage: Validate
+  displayName: 'Terraform Validation'
+
+  jobs:
+
+  - job: TerraformValidation
+    displayName: 'Terraform Validation'
+
+    steps:
+
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: latest
+
+    - task: TerraformTask@5
+      displayName: Terraform Init
+      inputs:
+        provider: azurerm
+        command: init
+        workingDirectory: '$(source_code_location)'
+        backendServiceArm: '$(serviceConnection)'
+        backendAzureRmStorageAccountName: 'backendstg10'
+        backendAzureRmContainerName: 'backendcnt10'
+        backendAzureRmKey: 'nishnat.tfstate'
+
+
+
+    - task: TerraformTask@5
+      displayName: Terraform Validate
+      inputs:
+        provider: azurerm
+        command: validate
+        workingDirectory: '$(source_code_location)'
+
+############################################
+# Stage 2 - Plan
+############################################
+
+- stage: Plan
+  displayName: 'Terraform Plan'
+  dependsOn: Validate
+
+  jobs:
+
+  - job: TerraformPlan
+    displayName: Terraform Plan
+
+    steps:
+
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: latest
+
+    - task: TerraformTask@5
+      displayName: Terraform Init
+      inputs:
+        provider: azurerm
+        command: init
+        workingDirectory: '$(source_code_location)'
+        backendServiceArm: '$(serviceConnection)'
+        backendAzureRmStorageAccountName: 'backendstg10'
+        backendAzureRmContainerName: 'backendcnt10'
+        backendAzureRmKey: 'nishnat.tfstate'
+
+    - task: TerraformTask@5
+      displayName: Terraform Plan
+      inputs:
+        provider: azurerm
+        command: plan
+        commandOptions: '-out=$(tfPlanFile) -var-file=$(tfvarsFile)'
+        environmentServiceNameAzureRM: '$(serviceConnection)'
+        workingDirectory: '$(source_code_location)'
+
+############################################
+# Stage 3 - Apply
+############################################
+
+- stage: Apply
+  displayName: 'Terraform Apply'
+  dependsOn: Plan
+
+  jobs:
+
+  - deployment: TerraformApply
+    displayName: Terraform Apply
+
+    environment: dev
+
+    strategy:
+      runOnce:
+        deploy:
+
+          steps:
+
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            displayName: Install Terraform
+            inputs:
+              terraformVersion: latest
+
+          - task: TerraformTask@5
+            displayName: Terraform Init
+            inputs:
+              provider: azurerm
+              command: init
+              workingDirectory: '$(source_code_location)'
+              backendServiceArm: '$(serviceConnection)'
+              backendAzureRmStorageAccountName: 'backendstg10'
+              backendAzureRmContainerName: 'backendcnt10'
+              backendAzureRmKey: 'nishnat.tfstate'
+
+          - task: TerraformTask@5
+            displayName: Terraform Apply
+            inputs:
+              provider: azurerm
+              command: apply
+              commandOptions: '-auto-approve -var-file=$(tfvarsFile)'
+              environmentServiceNameAzureRM: '$(serviceConnection)'
+              workingDirectory: '$(source_code_location)'
